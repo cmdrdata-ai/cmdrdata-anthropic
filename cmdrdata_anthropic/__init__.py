@@ -1,0 +1,86 @@
+"""
+cmdrdata-anthropic: Transparent usage tracking for Anthropic Claude API
+
+This package provides drop-in replacements for Anthropic's Python SDK clients
+that automatically track usage for customer billing and analytics.
+
+Key Features:
+- 100% API compatibility with original Anthropic clients
+- Transparent usage tracking with zero code changes required
+- Non-blocking I/O - tracking never slows down your application
+- Thread-safe customer context management
+- Comprehensive error handling and retry logic
+- Production-ready with extensive testing
+
+Basic Usage:
+    from cmdrdata_anthropic import TrackedAnthropic
+    
+    client = TrackedAnthropic(
+        api_key="your-anthropic-key",
+        cmdrdata_api_key="your-cmdrdata-key"
+    )
+    
+    # Same API as regular Anthropic client, with automatic tracking
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1000,
+        messages=[{"role": "user", "content": "Hello!"}]
+    )
+
+Customer Context:
+    from cmdrdata_anthropic.context import customer_context
+    
+    with customer_context("customer-123"):
+        response = client.messages.create(...)  # Automatically tracked
+"""
+
+__version__ = "0.1.0"
+
+# Main client exports
+from .client import TrackedAnthropic
+from .async_client import AsyncTrackedAnthropic
+
+# Context management
+from .context import (
+    customer_context,
+    set_customer_context,
+    get_customer_context,
+    clear_customer_context,
+)
+
+# Exceptions
+from .exceptions import (
+    CMDRDataError,
+    ValidationError,
+    ConfigurationError,
+    NetworkError,
+    TrackingError,
+)
+
+# Version compatibility
+from .version_compat import check_compatibility, get_compatibility_info
+
+__all__ = [
+    # Main clients
+    "TrackedAnthropic",
+    "AsyncTrackedAnthropic",
+    # Context management
+    "customer_context",
+    "set_customer_context", 
+    "get_customer_context",
+    "clear_customer_context",
+    # Exceptions
+    "CMDRDataError",
+    "ValidationError",
+    "ConfigurationError", 
+    "NetworkError",
+    "TrackingError",
+    # Compatibility
+    "check_compatibility",
+    "get_compatibility_info",
+]
+
+
+def get_version() -> str:
+    """Get the current version of cmdrdata-anthropic"""
+    return __version__
