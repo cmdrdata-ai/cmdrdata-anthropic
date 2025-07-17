@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = [
     "anthropic",
-    "claude", 
+    "claude",
     "ai",
     "llm",
     "usage-tracking",
@@ -29,7 +29,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9", 
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -127,7 +127,7 @@ addopts = [
 ]
 markers = [
     "unit: Unit tests",
-    "integration: Integration tests", 
+    "integration: Integration tests",
     "slow: Slow tests",
     "network: Tests requiring network access",
     "asyncio: Asyncio tests",
@@ -161,6 +161,7 @@ precision = 2
 
 [dependency-groups]
 dev = [
+    "pre-commit>=3.5.0",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.24.0",
 ]
