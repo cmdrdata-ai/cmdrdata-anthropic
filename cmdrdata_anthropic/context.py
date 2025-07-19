@@ -7,7 +7,7 @@ Python's contextvars for proper async support.
 
 import contextvars
 from contextlib import contextmanager
-from typing import Optional
+from typing import Any, Generator, Optional
 
 # Context variable for storing customer ID in current context
 _customer_context: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
@@ -49,7 +49,7 @@ def clear_customer_context() -> None:
 
 
 @contextmanager
-def customer_context(customer_id: str):
+def customer_context(customer_id: str) -> Generator[None, None, None]:
     """
     Context manager for temporarily setting a customer ID.
 
@@ -73,8 +73,11 @@ def customer_context(customer_id: str):
             clear_customer_context()
 
 
+_MISSING = object()  # Sentinel value to distinguish None from not provided
+
+
 def get_effective_customer_id(
-    explicit_customer_id: Optional[str] = ...,
+    explicit_customer_id=_MISSING,
 ) -> Optional[str]:
     """
     Get the effective customer ID to use for tracking.
@@ -90,8 +93,19 @@ def get_effective_customer_id(
     Returns:
         The customer ID to use for tracking, or None if not available
     """
-    # Use ... as sentinel to distinguish between None explicitly passed vs not passed
-    if explicit_customer_id is not ...:
+    # This function is called from SDK wrappers which need to distinguish
+    # between None passed explicitly vs no argument passed
+    # The wrapper should check if the arg was provided before calling this
+    if (
+        explicit_customer_id is not _MISSING
+        and explicit_customer_id is not ...
+        and explicit_customer_id is not None
+    ):
         return explicit_customer_id
 
+    # If None was explicitly passed, return None (no tracking)
+    if explicit_customer_id is None:
+        return None
+
+    # If no argument was provided (or ellipsis), check context
     return get_customer_context()

@@ -133,9 +133,9 @@ class TrackedAnthropic:
                         sub_track_methods[k] = v
                     elif k.startswith(f"{name}."):
                         # Sub-attribute, strip the prefix
-                        sub_key = k[len(name) + 1:]
+                        sub_key = k[len(name) + 1 :]
                         sub_track_methods[sub_key] = v
-                
+
                 wrapped_attr = TrackedProxy(attr, self._tracker, sub_track_methods)
                 self._tracked_attributes[name] = wrapped_attr
                 return wrapped_attr
@@ -149,7 +149,7 @@ class TrackedAnthropic:
         if name.startswith("_") or name in [
             "api_key",
             "base_url",
-            "timeout", 
+            "timeout",
             "max_retries",
             "default_headers",
         ]:
@@ -172,6 +172,7 @@ class TrackedAnthropic:
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get performance monitoring statistics"""
         from .performance import get_performance_stats
+
         return get_performance_stats()
 
     def __repr__(self):

@@ -19,12 +19,12 @@ class TestVersionCompatibility:
     def test_anthropic_version_detection(self):
         """Test detection of installed Anthropic version"""
         compat = VersionCompatibility()
-        
+
         # Should detect some version (or warn if not installed)
         assert compat.anthropic_version is not None or len(warnings.filters) > 0
 
     def test_supported_anthropic_version(self):
-        """Test that supported versions are marked as compatible"""  
+        """Test that supported versions are marked as compatible"""
         with patch("anthropic.__version__", "0.25.0"):
             compat = VersionCompatibility()
             assert compat.is_anthropic_supported()
@@ -39,7 +39,7 @@ class TestVersionCompatibility:
             mock_old_version.__ge__ = Mock(return_value=False)
             mock_parse.return_value = mock_old_version
             mock_version.parse = mock_parse
-            
+
             with patch("anthropic.__version__", "0.20.0"):
                 with warnings.catch_warnings(record=True) as w:
                     warnings.simplefilter("always")
@@ -69,7 +69,7 @@ class TestVersionCompatibility:
             mock_new_version.__str__ = Mock(return_value="0.99.0")
             mock_parse.return_value = mock_new_version
             mock_version.parse = mock_parse
-            
+
             with patch("anthropic.__version__", "0.99.0"):
                 with warnings.catch_warnings(record=True) as w:
                     warnings.simplefilter("always")
@@ -80,7 +80,7 @@ class TestVersionCompatibility:
     def test_get_compatibility_info(self):
         """Test compatibility information retrieval"""
         info = get_compatibility_info()
-        
+
         assert "anthropic" in info
         assert "python" in info
         assert "version" in info["python"]

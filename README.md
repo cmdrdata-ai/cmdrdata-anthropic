@@ -60,16 +60,16 @@ import cmdrdata_anthropic
 
 async def main():
     client = cmdrdata_anthropic.AsyncTrackedAnthropic(
-        api_key="your-anthropic-key", 
+        api_key="your-anthropic-key",
         cmdrdata_api_key="your-cmdrdata-key"
     )
-    
+
     response = await client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
         messages=[{"role": "user", "content": "Hello!"}]
     )
-    
+
     print(response.content)
     # Async usage tracking included!
 ```
@@ -157,7 +157,7 @@ client = cmdrdata_anthropic.TrackedAnthropic(
 # Tracked data (anonymized):
 {
     "customer_id": "customer-123",
-    "model": "claude-sonnet-4-20250514", 
+    "model": "claude-sonnet-4-20250514",
     "input_tokens": 25,
     "output_tokens": 150,
     "total_tokens": 175,
