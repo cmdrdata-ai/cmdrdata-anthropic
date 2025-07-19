@@ -86,6 +86,84 @@ class TestAsyncTrackedAnthropic:
             assert "AsyncTrackedAnthropic" in repr_str
             assert "enabled" in repr_str
 
+    def test_version_compatibility_warning(self):
+        """Test version compatibility warning"""
+        with patch("anthropic.AsyncAnthropic") as mock_anthropic:
+            mock_anthropic.return_value = Mock()
+
+            with patch(
+                "cmdrdata_anthropic.async_client.check_compatibility",
+                return_value=False,
+            ):
+                with patch("cmdrdata_anthropic.async_client.logger") as mock_logger:
+                    AsyncTrackedAnthropic(api_key=VALID_ANTHROPIC_KEY)
+                    mock_logger.warning.assert_called_once()
+
+    def test_client_initialization_failure(self):
+        """Test failure during client initialization"""
+        with patch("anthropic.AsyncAnthropic", side_effect=Exception("Init failed")):
+            with pytest.raises(
+                ConfigurationError, match="Failed to initialize AsyncAnthropic client"
+            ):
+                AsyncTrackedAnthropic(api_key=VALID_ANTHROPIC_KEY)
+
+    def test_tracker_initialization_failure(self):
+        """Test failure during tracker initialization"""
+        with patch("anthropic.AsyncAnthropic") as mock_anthropic:
+            mock_anthropic.return_value = Mock()
+
+            with patch(
+                "cmdrdata_anthropic.async_client.UsageTracker",
+                side_effect=Exception("Tracker failed"),
+            ):
+                with patch("cmdrdata_anthropic.async_client.logger") as mock_logger:
+                    client = AsyncTrackedAnthropic(
+                        api_key=VALID_ANTHROPIC_KEY, cmdrdata_api_key=VALID_CMDRDATA_KEY
+                    )
+                    assert client._track_usage is False
+                    mock_logger.warning.assert_called_once()
+
+    def test_getattr_attribute_error(self):
+        """Test __getattr__ method with non-existent attribute"""
+        with patch("anthropic.AsyncAnthropic") as mock_anthropic:
+            mock_client = Mock()
+            del mock_client.nonexistent_attr  # Ensure it doesn't exist
+            mock_anthropic.return_value = mock_client
+
+            client = AsyncTrackedAnthropic(api_key=VALID_ANTHROPIC_KEY)
+
+            with pytest.raises(
+                AttributeError, match="object has no attribute 'nonexistent_attr'"
+            ):
+                getattr(client, "nonexistent_attr")
+
+    def test_setattr_original_client(self):
+        """Test __setattr__ method for setting attributes on original client"""
+        with patch("anthropic.AsyncAnthropic") as mock_anthropic:
+            mock_client = Mock()
+            mock_anthropic.return_value = mock_client
+
+            client = AsyncTrackedAnthropic(api_key=VALID_ANTHROPIC_KEY)
+
+            # Set a non-private attribute - should be forwarded to original client
+            client.custom_attr = "test_value"
+            assert mock_client.custom_attr == "test_value"
+
+    def test_dir_method(self):
+        """Test __dir__ method returns combined attributes"""
+        with patch("anthropic.AsyncAnthropic") as mock_anthropic:
+            mock_client = Mock()
+            mock_client.__dir__ = Mock(return_value=["messages", "chat", "completions"])
+            mock_anthropic.return_value = mock_client
+
+            client = AsyncTrackedAnthropic(api_key=VALID_ANTHROPIC_KEY)
+
+            attrs = dir(client)
+            # Should include both proxy and original client attributes
+            assert isinstance(attrs, list)
+            # Check some expected attributes are present
+            assert any("messages" in str(attr) for attr in attrs)
+
 
 class TestAsyncTrackedAnthropicMessagesCreate:
     @pytest.mark.asyncio
@@ -241,6 +319,20 @@ class TestAsyncTrackedAnthropicMessagesCreate:
                 )
 
                 assert result == mock_anthropic_response
+
+    @pytest.mark.asyncio
+    async def test_track_messages_create_early_return(self):
+        """Test _track_messages_create early return when tracking is disabled"""
+        with patch("anthropic.AsyncAnthropic") as mock_anthropic:
+            mock_anthropic.return_value = Mock()
+
+            client = AsyncTrackedAnthropic(api_key=VALID_ANTHROPIC_KEY)
+            client._track_usage = False
+            client._tracker = None
+
+            # This should return early without doing anything
+            await client._track_messages_create(Mock())
+            # If we get here without error, the early return worked
 
 
 @pytest.fixture

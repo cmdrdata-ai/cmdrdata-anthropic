@@ -90,3 +90,71 @@ class TestVersionCompatibility:
         """Test standalone compatibility check function"""
         result = check_compatibility()
         assert isinstance(result, bool)
+
+    def test_fake_version_class(self):
+        """Test the FakeVersion fallback class when packaging is not available"""
+        # Temporarily hide the packaging module
+        import sys
+
+        original_modules = sys.modules.copy()
+
+        try:
+            # Remove packaging from sys.modules to trigger ImportError
+            if "packaging" in sys.modules:
+                del sys.modules["packaging"]
+            if "packaging.version" in sys.modules:
+                del sys.modules["packaging.version"]
+
+            # Reload the module to trigger the fallback
+            import importlib
+
+            import cmdrdata_anthropic.version_compat
+
+            importlib.reload(cmdrdata_anthropic.version_compat)
+
+            # Test FakeVersion functionality
+            from cmdrdata_anthropic.version_compat import version
+
+            v1 = version.parse("1.0.0")
+            v2 = version.parse("2.0.0")
+            v3 = version.parse("1.0.0")
+
+            assert v1 < v2
+            assert v1 <= v2
+            assert v1 <= v3
+            assert v2 > v1
+            assert v2 >= v1
+            assert v1 == v3
+            assert v1 != v2
+            assert str(v1) == "1.0.0"
+
+            # Test NotImplemented for wrong type comparison
+            assert (v1 == "1.0.0") is False
+
+        finally:
+            # Restore original modules
+            sys.modules.clear()
+            sys.modules.update(original_modules)
+            importlib.reload(cmdrdata_anthropic.version_compat)
+
+    def test_validate_version_none(self):
+        """Test _validate_anthropic_version with None version"""
+        compat = VersionCompatibility()
+        compat.anthropic_version = None
+        # Should return early without warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            compat._validate_anthropic_version()
+            assert len(w) == 0
+
+    def test_older_untested_version_warning(self):
+        """Test warning for older untested versions"""
+        with patch("anthropic.__version__", "0.29.0"):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                compat = VersionCompatibility()
+                # Check if warning was issued for untested version
+                warning_found = any(
+                    "has not been fully tested" in str(warning.message) for warning in w
+                )
+                assert warning_found
