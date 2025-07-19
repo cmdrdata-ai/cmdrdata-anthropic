@@ -5,9 +5,12 @@ Async Tracked Anthropic client with automatic usage tracking
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from .context import get_effective_customer_id
+
+# Sentinel value to distinguish when customer_id is not provided
+_MISSING = object()
 from .exceptions import ConfigurationError, ValidationError
 from .logging_config import get_logger
 from .performance import PerformanceContext
@@ -32,8 +35,8 @@ class AsyncTrackedAnthropic:
         cmdrdata_api_key: Optional[str] = None,
         cmdrdata_endpoint: str = "https://www.cmdrdata.ai/api/events",
         track_usage: bool = True,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize the async tracked Anthropic client.
 
@@ -82,7 +85,7 @@ class AsyncTrackedAnthropic:
         self._tracker = None
         self._track_usage = track_usage and cmdrdata_api_key is not None
 
-        if self._track_usage:
+        if self._track_usage and cmdrdata_api_key:
             try:
                 self._tracker = UsageTracker(
                     api_key=cmdrdata_api_key,
@@ -101,7 +104,7 @@ class AsyncTrackedAnthropic:
         result: Any,
         customer_id: Optional[str] = None,
         model: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Track messages.create usage asynchronously"""
         if not self._track_usage or not self._tracker:
@@ -115,7 +118,7 @@ class AsyncTrackedAnthropic:
 
             if hasattr(result, "usage") and result.usage:
                 await self._tracker.track_usage_async(
-                    customer_id=effective_customer_id,
+                    customer_id=effective_customer_id or "",  # Use empty string if None
                     model=getattr(result, "model", model or "unknown"),
                     input_tokens=result.usage.input_tokens,
                     output_tokens=result.usage.output_tokens,
@@ -156,7 +159,7 @@ class AsyncTrackedAnthropic:
         """Forward attribute setting to the underlying client"""
         if name.startswith("_") or name in [
             "api_key",
-            "base_url", 
+            "base_url",
             "timeout",
             "max_retries",
             "default_headers",
@@ -165,7 +168,7 @@ class AsyncTrackedAnthropic:
         else:
             setattr(self._original_client, name, value)
 
-    def __dir__(self):
+    def __dir__(self) -> list[str]:
         """Return attributes from both proxy and underlying client"""
         proxy_attrs = [
             attr for attr in object.__dir__(self) if not attr.startswith("_")
@@ -180,18 +183,19 @@ class AsyncTrackedAnthropic:
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get performance monitoring statistics"""
         from .performance import get_performance_stats
+
         return get_performance_stats()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AsyncTrackedAnthropic":
         """Async context manager entry"""
         await self._original_client.__aenter__()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> Any:
         """Async context manager exit"""
         return await self._original_client.__aexit__(exc_type, exc_val, exc_tb)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a helpful representation"""
         tracking_status = "enabled" if self._track_usage else "disabled"
         return f"AsyncTrackedAnthropic(tracking={tracking_status})"
@@ -200,22 +204,30 @@ class AsyncTrackedAnthropic:
 class AsyncTrackedMessages:
     """Wrapper for messages API with usage tracking"""
 
-    def __init__(self, original_messages, track_func):
+    def __init__(self, original_messages: Any, track_func: Optional[Any]) -> None:
         self._original_messages = original_messages
         self._track_func = track_func
 
-    async def create(self, customer_id: Optional[str] = ..., track_usage: bool = True, **kwargs):
+    async def create(
+        self,
+        customer_id: Union[Optional[str], object] = _MISSING,
+        track_usage: bool = True,
+        **kwargs,
+    ) -> Any:
         """Create a message with optional usage tracking"""
         # Call the original create method
         result = await self._original_messages.create(**kwargs)
 
         # Track usage if enabled
         if track_usage and self._track_func:
-            await self._track_func(
-                result=result,
-                customer_id=customer_id,
-                model=kwargs.get("model"),
-            )
+            # Only pass customer_id if it was explicitly provided
+            track_kwargs = {
+                "result": result,
+                "model": kwargs.get("model"),
+            }
+            if customer_id is not _MISSING:
+                track_kwargs["customer_id"] = customer_id
+            await self._track_func(**track_kwargs)
 
         return result
 

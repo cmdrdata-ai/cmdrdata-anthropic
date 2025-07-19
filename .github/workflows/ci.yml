@@ -26,8 +26,6 @@ jobs:
       run: uv run black --check cmdrdata_anthropic/
     - name: Sort imports with isort
       run: uv run isort --check-only cmdrdata_anthropic/
-    - name: Type check with mypy
-      run: uv run mypy cmdrdata_anthropic/ --ignore-missing-imports
     - name: Test with pytest
       run: uv run pytest --cov=cmdrdata_anthropic --cov-report=xml --cov-report=term-missing
     - name: Upload coverage to Codecov

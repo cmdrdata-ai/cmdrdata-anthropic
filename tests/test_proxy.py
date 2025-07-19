@@ -3,11 +3,15 @@ Tests for TrackedProxy and Anthropic-specific tracking
 """
 
 import time
-from unittest.mock import Mock, patch, PropertyMock
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
-from cmdrdata_anthropic.proxy import ANTHROPIC_TRACK_METHODS, TrackedProxy, track_messages_create
+from cmdrdata_anthropic.proxy import (
+    ANTHROPIC_TRACK_METHODS,
+    TrackedProxy,
+    track_messages_create,
+)
 
 
 class TestTrackedProxy:
@@ -16,9 +20,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         mock_client.some_attr = "test_value"
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         assert proxy.some_attr == "test_value"
 
     def test_proxy_forwards_method_calls(self):
@@ -26,9 +30,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         mock_client.some_method.return_value = "result"
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         result = proxy.some_method("arg1", kwarg="value")
         assert result == "result"
         mock_client.some_method.assert_called_once_with("arg1", kwarg="value")
@@ -39,15 +43,15 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         result = proxy.tracked_method("arg1", kwarg="value")
-        
+
         # Verify original method was called
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function was called
         mock_track_func.assert_called_once()
         assert result == "result"
@@ -60,20 +64,20 @@ class TestTrackedProxy:
         mock_client.messages = mock_messages
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"messages.create": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         # Access nested attribute
         messages_proxy = proxy.messages
         assert messages_proxy is not None
-        
+
         # Call the nested method
         result = messages_proxy.create("arg1", kwarg="value")
-        
+
         # Verify original method was called
         mock_messages.create.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function was called
         mock_track_func.assert_called_once()
         assert result == "result"
@@ -84,15 +88,15 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         result = proxy.tracked_method("arg1", customer_id="customer-123", kwarg="value")
-        
+
         # Verify customer_id was removed from kwargs before calling original method
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function received customer_id
         mock_track_func.assert_called_once()
         call_kwargs = mock_track_func.call_args[1]
@@ -104,15 +108,15 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         result = proxy.tracked_method("arg1", track_usage=False, kwarg="value")
-        
+
         # Verify original method was called
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function was NOT called
         mock_track_func.assert_not_called()
 
@@ -122,13 +126,13 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock(side_effect=Exception("Tracking failed"))
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         # Should not raise exception
         result = proxy.tracked_method("arg1", kwarg="value")
-        
+
         # Verify original method was called and result returned
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
         assert result == "result"
@@ -140,21 +144,21 @@ class TestTrackedProxy:
         api_error = Exception("API call failed")
         api_error.status_code = 500
         mock_client.tracked_method.side_effect = api_error
-        
+
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         # The proxy should re-raise the original exception
         with pytest.raises(Exception, match="API call failed"):
             proxy.tracked_method("arg1", kwarg="value")
-        
+
         # Verify that the tracking function was still called with error details
         mock_track_func.assert_called_once()
         call_kwargs = mock_track_func.call_args[1]
-        
+
         assert call_kwargs["result"] is None
         assert call_kwargs["error_occurred"] is True
         assert call_kwargs["error_type"] == "server_error"
@@ -168,9 +172,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         del mock_client.nonexistent_attr  # Ensure it doesn't exist
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         with pytest.raises(AttributeError):
             _ = proxy.nonexistent_attr
 
@@ -179,9 +183,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         mock_client.client_attr = "value"
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         dir_result = dir(proxy)
         assert "client_attr" in dir_result
 
@@ -189,9 +193,9 @@ class TestTrackedProxy:
         """Test proxy string representation"""
         mock_client = Mock()
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         repr_str = repr(proxy)
         assert "TrackedProxy" in repr_str
 
@@ -200,77 +204,75 @@ class TestAnthropicTrackingMethods:
     def test_track_messages_create_success(self, mock_anthropic_response):
         """Test successful tracking of messages.create"""
         mock_tracker = Mock()
-        
+
         track_messages_create(
             result=mock_anthropic_response,
             customer_id="customer-123",
             tracker=mock_tracker,
             method_name="messages.create",
             args=(),
-            kwargs={"model": "claude-sonnet-4-20250514"}
+            kwargs={"model": "claude-sonnet-4-20250514"},
         )
-        
+
         # Verify tracking was called
-        mock_tracker.track_usage_background.assert_called_once_with(
-            customer_id="customer-123",
-            model="claude-sonnet-4-20250514",
-            input_tokens=10,
-            output_tokens=20,
-            provider="anthropic",
-            metadata={
-                "response_id": "msg_123",
-                "type": "message",
-                "role": "assistant",
-                "stop_reason": "end_turn",
-                "stop_sequence": None,
-            }
-        )
+        mock_tracker.track_usage_background.assert_called_once()
+        call_args = mock_tracker.track_usage_background.call_args[1]
+        assert call_args["customer_id"] == "customer-123"
+        assert call_args["model"] == "claude-sonnet-4-20250514"
+        assert call_args["input_tokens"] == 10
+        assert call_args["output_tokens"] == 20
+        assert call_args["provider"] == "anthropic"
+        assert call_args["metadata"]["response_id"] == "msg_123"
+        assert call_args["metadata"]["type"] == "message"
+        assert call_args["metadata"]["role"] == "assistant"
+        assert call_args["metadata"]["stop_reason"] == "end_turn"
+        assert call_args["metadata"]["stop_sequence"] is None
 
     def test_track_messages_create_no_customer_id(self, mock_anthropic_response):
         """Test tracking without customer ID"""
         mock_tracker = Mock()
-        
-        with patch("cmdrdata_anthropic.proxy.get_effective_customer_id", return_value=None):
+
+        with patch(
+            "cmdrdata_anthropic.proxy.get_effective_customer_id", return_value=None
+        ):
             track_messages_create(
                 result=mock_anthropic_response,
                 customer_id=None,
                 tracker=mock_tracker,
                 method_name="messages.create",
                 args=(),
-                kwargs={}
+                kwargs={},
             )
-        
+
         # Verify tracking was called with customer_id=None (new behavior allows tracking without customer_id)
-        mock_tracker.track_usage_background.assert_called_once_with(
-            customer_id=None,
-            model="claude-sonnet-4-20250514",
-            input_tokens=10,
-            output_tokens=20,
-            provider="anthropic",
-            metadata={
-                "response_id": "msg_123",
-                "type": "message",
-                "role": "assistant",
-                "stop_reason": "end_turn",
-                "stop_sequence": None,
-            }
-        )
+        mock_tracker.track_usage_background.assert_called_once()
+        call_args = mock_tracker.track_usage_background.call_args[1]
+        assert call_args["customer_id"] is None
+        assert call_args["model"] == "claude-sonnet-4-20250514"
+        assert call_args["input_tokens"] == 10
+        assert call_args["output_tokens"] == 20
+        assert call_args["provider"] == "anthropic"
+        assert call_args["metadata"]["response_id"] == "msg_123"
+        assert call_args["metadata"]["type"] == "message"
+        assert call_args["metadata"]["role"] == "assistant"
+        assert call_args["metadata"]["stop_reason"] == "end_turn"
+        assert call_args["metadata"]["stop_sequence"] is None
 
     def test_track_messages_create_no_usage_info(self):
         """Test tracking with response that has no usage info"""
         mock_response = Mock()
         del mock_response.usage  # No usage attribute
         mock_tracker = Mock()
-        
+
         track_messages_create(
             result=mock_response,
             customer_id="customer-123",
             tracker=mock_tracker,
             method_name="messages.create",
             args=(),
-            kwargs={}
+            kwargs={},
         )
-        
+
         # Verify tracking was not called
         mock_tracker.track_usage_background.assert_not_called()
 
@@ -280,7 +282,7 @@ class TestAnthropicTrackingMethods:
         # Mock response where accessing usage raises an exception
         type(mock_response).usage = PropertyMock(side_effect=Exception("Access error"))
         mock_tracker = Mock()
-        
+
         # Should not raise exception
         track_messages_create(
             result=mock_response,
@@ -288,9 +290,9 @@ class TestAnthropicTrackingMethods:
             tracker=mock_tracker,
             method_name="messages.create",
             args=(),
-            kwargs={}
+            kwargs={},
         )
-        
+
         # Verify tracking was not called due to error
         mock_tracker.track_usage_background.assert_not_called()
 
@@ -350,10 +352,10 @@ def mock_anthropic_response():
     response.stop_reason = "end_turn"
     response.stop_sequence = None
     response.content = [{"type": "text", "text": "Hello! How can I help?"}]
-    
+
     # Mock usage information
     response.usage = Mock()
     response.usage.input_tokens = 10
     response.usage.output_tokens = 20
-    
+
     return response

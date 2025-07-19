@@ -260,7 +260,7 @@ class InputValidator:
         return True
 
     @staticmethod
-    def sanitize_string(value: str, max_length: int = 1000) -> str:
+    def sanitize_string(value: Any, max_length: int = 1000) -> str:
         """
         Sanitize string value
 
@@ -348,7 +348,7 @@ def validate_input(validation_func: Callable) -> Callable:
     """
 
     def decorator(func: Callable) -> Callable:
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 validation_func(*args, **kwargs)
             except (ValidationError, SecurityError) as e:

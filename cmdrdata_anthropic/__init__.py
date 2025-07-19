@@ -14,12 +14,12 @@ Key Features:
 
 Basic Usage:
     from cmdrdata_anthropic import TrackedAnthropic
-    
+
     client = TrackedAnthropic(
         api_key="your-anthropic-key",
         cmdrdata_api_key="your-cmdrdata-key"
     )
-    
+
     # Same API as regular Anthropic client, with automatic tracking
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -29,32 +29,33 @@ Basic Usage:
 
 Customer Context:
     from cmdrdata_anthropic.context import customer_context
-    
+
     with customer_context("customer-123"):
         response = client.messages.create(...)  # Automatically tracked
 """
 
 __version__ = "0.1.0"
 
+from .async_client import AsyncTrackedAnthropic
+
 # Main client exports
 from .client import TrackedAnthropic
-from .async_client import AsyncTrackedAnthropic
 
 # Context management
 from .context import (
-    customer_context,
-    set_customer_context,
-    get_customer_context,
     clear_customer_context,
+    customer_context,
+    get_customer_context,
+    set_customer_context,
 )
 
 # Exceptions
 from .exceptions import (
     CMDRDataError,
-    ValidationError,
     ConfigurationError,
     NetworkError,
     TrackingError,
+    ValidationError,
 )
 
 # Version compatibility
@@ -66,13 +67,13 @@ __all__ = [
     "AsyncTrackedAnthropic",
     # Context management
     "customer_context",
-    "set_customer_context", 
+    "set_customer_context",
     "get_customer_context",
     "clear_customer_context",
     # Exceptions
     "CMDRDataError",
     "ValidationError",
-    "ConfigurationError", 
+    "ConfigurationError",
     "NetworkError",
     "TrackingError",
     # Compatibility

@@ -25,7 +25,7 @@ class TrackedProxy:
         self,
         client: Any,
         tracker: UsageTracker,
-        track_methods: Dict[str, Callable] = None,
+        track_methods: Optional[Dict[str, Callable]] = None,
     ):
         """
         Initialize the proxy.
@@ -116,7 +116,7 @@ class TrackedProxy:
             error_type = None
             error_code = None
             error_message = None
-            
+
             try:
                 result = method(*args, **kwargs)
                 end_time = time.time()
@@ -148,8 +148,8 @@ class TrackedProxy:
                 end_time = time.time()
                 error_occurred = True
                 error_message = str(e)
-                
-                if hasattr(e, 'status_code'):
+
+                if hasattr(e, "status_code"):
                     error_code = str(e.status_code)
                     if e.status_code == 429:
                         error_type = "rate_limit"
@@ -181,8 +181,10 @@ class TrackedProxy:
                             request_id=request_id,
                         )
                     except Exception as track_error:
-                        logger.warning(f"Failed to track error for {method_name}: {track_error}")
-                
+                        logger.warning(
+                            f"Failed to track error for {method_name}: {track_error}"
+                        )
+
                 raise
 
         wrapped.__name__ = getattr(method, "__name__", method_name)
@@ -200,12 +202,12 @@ class TrackedProxy:
 
 
 def track_messages_create(
-    result, 
-    customer_id, 
-    tracker, 
-    method_name, 
-    args, 
-    kwargs, 
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
     custom_metadata=None,
     # Enhanced tracking parameters
     request_start_time=None,
@@ -214,7 +216,7 @@ def track_messages_create(
     error_type=None,
     error_code=None,
     error_message=None,
-    request_id=None
+    request_id=None,
 ):
     """Track Anthropic messages.create usage"""
     try:
@@ -223,11 +225,14 @@ def track_messages_create(
         input_tokens = 0
         output_tokens = 0
         model = kwargs.get("model", "unknown")
-        
+
         if result and hasattr(result, "usage"):
             input_tokens = result.usage.input_tokens
             output_tokens = result.usage.output_tokens
             model = getattr(result, "model", model)
+        elif not error_occurred:
+            # No usage data available and no error, skip tracking
+            return
 
         metadata = {
             "response_id": getattr(result, "id", None),
@@ -236,10 +241,10 @@ def track_messages_create(
             "stop_reason": getattr(result, "stop_reason", None),
             "stop_sequence": getattr(result, "stop_sequence", None),
         }
-        
+
         if custom_metadata:
             metadata.update(custom_metadata)
-        
+
         tracker.track_usage_background(
             customer_id=effective_customer_id,
             model=model,

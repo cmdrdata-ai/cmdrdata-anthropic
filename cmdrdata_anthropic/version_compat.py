@@ -11,28 +11,30 @@ try:
 except ImportError:
     # Fallback version parsing
     class FakeVersion:
-        def __init__(self, v):
+        def __init__(self, v: str) -> None:
             self.v = v
 
-        def __lt__(self, other):
+        def __lt__(self, other: "FakeVersion") -> bool:
             return self.v < other.v
 
-        def __le__(self, other):
+        def __le__(self, other: "FakeVersion") -> bool:
             return self.v <= other.v
 
-        def __gt__(self, other):
+        def __gt__(self, other: "FakeVersion") -> bool:
             return self.v > other.v
 
-        def __ge__(self, other):
+        def __ge__(self, other: "FakeVersion") -> bool:
             return self.v >= other.v
 
-        def __eq__(self, other):
+        def __eq__(self, other: object) -> bool:
+            if not isinstance(other, FakeVersion):
+                return NotImplemented
             return self.v == other.v
 
-        def __str__(self):
+        def __str__(self) -> str:
             return self.v
 
-    def parse(v):
+    def parse(v: str) -> FakeVersion:
         return FakeVersion(v)
 
     version = type("Version", (), {"parse": parse})()
@@ -46,17 +48,25 @@ class VersionCompatibility:
         "min": "0.21.0",
         "max": "1.0.0",  # Updated for latest versions
         "tested": [
-            "0.21.0", "0.25.0", "0.28.0", "0.30.0", "0.32.0", 
-            "0.34.0", "0.35.0", "0.36.0", "0.37.0", "0.38.0"
+            "0.21.0",
+            "0.25.0",
+            "0.28.0",
+            "0.30.0",
+            "0.32.0",
+            "0.34.0",
+            "0.35.0",
+            "0.36.0",
+            "0.37.0",
+            "0.38.0",
         ],
         "latest_tested": "0.38.0",
     }
 
-    def __init__(self):
-        self.anthropic_version = None
+    def __init__(self) -> None:
+        self.anthropic_version: Optional[str] = None
         self._check_anthropic_version()
 
-    def _check_anthropic_version(self):
+    def _check_anthropic_version(self) -> None:
         """Check installed version of Anthropic SDK"""
         try:
             import anthropic
@@ -70,7 +80,7 @@ class VersionCompatibility:
                 stacklevel=3,
             )
 
-    def _validate_anthropic_version(self):
+    def _validate_anthropic_version(self) -> None:
         """Validate Anthropic version and show warnings if needed"""
         if not self.anthropic_version:
             return
@@ -96,7 +106,10 @@ class VersionCompatibility:
                 stacklevel=3,
             )
         # Only warn for significantly older untested versions, not newer ones
-        elif current < version.parse("0.30.0") and str(current) not in self.SUPPORTED_ANTHROPIC_VERSIONS["tested"]:
+        elif (
+            current < version.parse("0.30.0")
+            and str(current) not in self.SUPPORTED_ANTHROPIC_VERSIONS["tested"]
+        ):
             warnings.warn(
                 f"cmdrdata-anthropic: Anthropic SDK version {self.anthropic_version} has not been fully tested. "
                 f"Latest tested version: {self.SUPPORTED_ANTHROPIC_VERSIONS['latest_tested']}. "
@@ -114,7 +127,7 @@ class VersionCompatibility:
         min_version = version.parse(self.SUPPORTED_ANTHROPIC_VERSIONS["min"])
         max_version = version.parse(self.SUPPORTED_ANTHROPIC_VERSIONS["max"])
 
-        return min_version <= current < max_version
+        return bool(min_version <= current < max_version)
 
     def get_compatibility_info(self) -> Dict[str, Any]:
         """Get comprehensive compatibility information"""
