@@ -34,7 +34,7 @@ Customer Context:
         response = client.messages.create(...)  # Automatically tracked
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .async_client import AsyncTrackedAnthropic
 

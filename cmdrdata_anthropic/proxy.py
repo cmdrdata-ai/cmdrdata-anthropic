@@ -265,7 +265,153 @@ def track_messages_create(
         logger.warning(f"Failed to extract usage data from messages.create: {e}")
 
 
-# Anthropic tracking configuration
+def track_messages_batch_create(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track Anthropic messages batch creation"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning("No customer_id provided for messages batch tracking")
+            return
+
+        metadata = {
+            "batch_id": getattr(result, "id", None),
+            "processing_status": getattr(result, "processing_status", None),
+            "request_count": len(kwargs.get("requests", [])),
+            "expires_at": getattr(result, "expires_at", None),
+        }
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        # Batch creation doesn't provide token usage immediately
+        # We track the batch creation event for analytics
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model="batch",  # Special identifier for batch operations
+            input_tokens=0,  # Actual usage tracked when batch completes
+            output_tokens=0,
+            provider="anthropic",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track messages batch: {e}")
+
+
+def track_completions_create(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track Anthropic completions (legacy API)"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning("No customer_id provided for completions tracking")
+            return
+
+        # Legacy completions API structure
+        input_tokens = 0
+        output_tokens = 0
+        model = kwargs.get("model", "unknown")
+
+        if result and hasattr(result, "usage"):
+            input_tokens = getattr(result.usage, "input_tokens", 0)
+            output_tokens = getattr(result.usage, "output_tokens", 0)
+            model = getattr(result, "model", model)
+        elif result and hasattr(result, "completion"):
+            # Estimate tokens for legacy format (rough approximation)
+            input_text = kwargs.get("prompt", "")
+            output_text = getattr(result, "completion", "")
+            input_tokens = len(input_text.split()) * 1.3  # Rough token estimate
+            output_tokens = len(output_text.split()) * 1.3
+
+        metadata = {
+            "response_id": getattr(result, "id", None),
+            "stop_reason": getattr(result, "stop_reason", None),
+            "legacy_api": True,  # Mark as legacy API usage
+        }
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model=model,
+            input_tokens=int(input_tokens),
+            output_tokens=int(output_tokens),
+            provider="anthropic",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track completions: {e}")
+
+
+def track_token_count(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track token counting operations (beta)"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning("No customer_id provided for token count tracking")
+            return
+
+        token_count = getattr(result, "token_count", 0) if result else 0
+
+        metadata = {
+            "token_count": token_count,
+            "operation": "count_tokens",
+            "model": kwargs.get("model", "unknown"),
+        }
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        # Token counting is typically free but worth tracking for analytics
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model=kwargs.get("model", "token-counter"),
+            input_tokens=0,  # Count operations don't consume tokens
+            output_tokens=0,
+            provider="anthropic",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track token counting: {e}")
+
+
+# Anthropic tracking configuration - All methods that consume tokens or should be tracked
 ANTHROPIC_TRACK_METHODS = {
+    # Primary Messages API
     "messages.create": track_messages_create,
+    # Batch Processing (Beta)
+    "messages.batches.create": track_messages_batch_create,
+    # Legacy Completions API
+    "completions.create": track_completions_create,
+    # Beta Features - Token Counting
+    "beta.messages.count_tokens": track_token_count,
 }

@@ -10,7 +10,10 @@ import pytest
 from cmdrdata_anthropic.proxy import (
     ANTHROPIC_TRACK_METHODS,
     TrackedProxy,
+    track_completions_create,
+    track_messages_batch_create,
     track_messages_create,
+    track_token_count,
 )
 
 
@@ -335,10 +338,197 @@ class TestAnthropicTrackingMethods:
         assert call_kwargs["request_start_time"] == start_time
         assert call_kwargs["request_end_time"] == end_time
 
+    def test_track_messages_batch_create_success(self):
+        """Test successful tracking of messages.batches.create"""
+        # Set up batch response mock
+        mock_batch_result = Mock()
+        mock_batch_result.id = "msgbatch_123"
+        mock_batch_result.type = "message_batch"
+        mock_batch_result.processing_status = "in_progress"
+        mock_batch_result.request_counts = Mock()
+        mock_batch_result.request_counts.processing = 5
+        mock_batch_result.request_counts.succeeded = 0
+        mock_batch_result.request_counts.errored = 0
+        mock_batch_result.request_counts.canceled = 0
+        mock_batch_result.request_counts.expired = 0
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_anthropic.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_messages_batch_create(
+                result=mock_batch_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="messages.batches.create",
+                args=(),
+                kwargs={"requests": [{"model": "claude-3-sonnet-20240229"}] * 5},
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "batch"
+            assert call_kwargs["input_tokens"] == 0
+            assert call_kwargs["output_tokens"] == 0
+            assert call_kwargs["provider"] == "anthropic"
+            assert call_kwargs["metadata"]["batch_id"] == "msgbatch_123"
+            assert call_kwargs["metadata"]["processing_status"] == "in_progress"
+            assert call_kwargs["metadata"]["request_count"] == 5
+
+    def test_track_completions_create_success(self):
+        """Test successful tracking of legacy completions.create"""
+        # Set up completion response mock (without usage attribute to test token estimation)
+        mock_completion_result = Mock(
+            spec=["id", "type", "completion", "model", "stop_reason", "stop"]
+        )
+        mock_completion_result.id = "cmpl_123"
+        mock_completion_result.type = "completion"
+        mock_completion_result.completion = "This is a test completion"
+        mock_completion_result.model = "claude-2"
+        mock_completion_result.stop_reason = "stop_sequence"
+        mock_completion_result.stop = None
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_anthropic.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_completions_create(
+                result=mock_completion_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="completions.create",
+                args=(),
+                kwargs={
+                    "prompt": "Human: Test prompt",
+                    "model": "claude-2",
+                    "max_tokens_to_sample": 100,
+                },
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "claude-2"
+            assert (
+                call_kwargs["input_tokens"] == 3
+            )  # len("Human: Test prompt".split()) * 1.3
+            assert (
+                call_kwargs["output_tokens"] == 6
+            )  # len("This is a test completion".split()) * 1.3
+            assert call_kwargs["provider"] == "anthropic"
+            assert call_kwargs["metadata"]["response_id"] == "cmpl_123"
+            assert call_kwargs["metadata"]["stop_reason"] == "stop_sequence"
+            assert call_kwargs["metadata"]["legacy_api"] is True
+
+    def test_track_token_count_success(self):
+        """Test successful tracking of beta.messages.count_tokens"""
+        # Set up token count response mock
+        mock_token_result = Mock()
+        mock_token_result.token_count = 25
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_anthropic.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_token_count(
+                result=mock_token_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="beta.messages.count_tokens",
+                args=(),
+                kwargs={
+                    "model": "claude-3-sonnet-20240229",
+                    "messages": [{"role": "user", "content": "Hello, how are you?"}],
+                },
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "claude-3-sonnet-20240229"
+            assert call_kwargs["input_tokens"] == 0
+            assert call_kwargs["output_tokens"] == 0
+            assert call_kwargs["provider"] == "anthropic"
+            assert call_kwargs["metadata"]["operation"] == "count_tokens"
+            assert call_kwargs["metadata"]["token_count"] == 25
+            assert call_kwargs["metadata"]["model"] == "claude-3-sonnet-20240229"
+
     def test_anthropic_track_methods_configuration(self):
         """Test that ANTHROPIC_TRACK_METHODS is configured correctly"""
-        assert "messages.create" in ANTHROPIC_TRACK_METHODS
-        assert ANTHROPIC_TRACK_METHODS["messages.create"] == track_messages_create
+        expected_methods = {
+            "messages.create": track_messages_create,
+            "messages.batches.create": track_messages_batch_create,
+            "completions.create": track_completions_create,
+            "beta.messages.count_tokens": track_token_count,
+        }
+
+        for method_name, expected_function in expected_methods.items():
+            assert (
+                method_name in ANTHROPIC_TRACK_METHODS
+            ), f"Missing method: {method_name}"
+            assert callable(
+                ANTHROPIC_TRACK_METHODS[method_name]
+            ), f"Method {method_name} not callable"
+            assert (
+                ANTHROPIC_TRACK_METHODS[method_name] == expected_function
+            ), f"Wrong function for {method_name}"
+
+        # Verify we have the expected total count
+        assert (
+            len(ANTHROPIC_TRACK_METHODS) == 4
+        ), f"Expected 4 methods, got {len(ANTHROPIC_TRACK_METHODS)}"
+
+    def test_proxy_integration_all_methods(self):
+        """Test that all tracking methods work through proxy integration"""
+        mock_client = Mock()
+        mock_tracker = Mock()
+
+        # Set up nested mock structure for Anthropic client
+        mock_client.messages = Mock()
+        mock_client.messages.create = Mock(return_value="message_result")
+        mock_client.messages.batches = Mock()
+        mock_client.messages.batches.create = Mock(return_value="batch_result")
+
+        mock_client.completions = Mock()
+        mock_client.completions.create = Mock(return_value="completion_result")
+
+        mock_client.beta = Mock()
+        mock_client.beta.messages = Mock()
+        mock_client.beta.messages.count_tokens = Mock(return_value="token_count_result")
+
+        proxy = TrackedProxy(
+            client=mock_client,
+            tracker=mock_tracker,
+            track_methods=ANTHROPIC_TRACK_METHODS,
+        )
+
+        # Test each method through proxy
+        test_cases = [
+            (lambda: proxy.messages.create(), "message_result"),
+            (lambda: proxy.messages.batches.create(), "batch_result"),
+            (lambda: proxy.completions.create(), "completion_result"),
+            (lambda: proxy.beta.messages.count_tokens(), "token_count_result"),
+        ]
+
+        for test_func, expected_result in test_cases:
+            result = test_func()
+            assert result == expected_result
 
 
 @pytest.fixture
