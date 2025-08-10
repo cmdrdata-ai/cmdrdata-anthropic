@@ -6,41 +6,42 @@
 [![Python Support](https://img.shields.io/pypi/pyversions/cmdrdata-anthropic.svg)](https://pypi.org/project/cmdrdata-anthropic/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Customer tracking and usage-based billing for Anthropic Claude**
+**The standard for AI customer intelligence - track every Claude call by customer, feature, or any dimension**
 
-Transform your Anthropic Claude integration into a customer-aware, usage-based billing system. Track exactly what each customer consumes and bill them accordingly with fine-grained precision and arbitrary metadata support.
+Join hundreds of companies making customer-level AI tracking the default. One line of code to add complete visibility into your AI operations. Free during beta.
 
-## 💰 Customer Tracking & Usage-Based Billing
+## 📊 Complete AI Intelligence Layer
 
-`cmdrdata-anthropic` enables **fine-grained customer tracking** and **usage-based billing** for your Claude integration:
+`cmdrdata-anthropic` is the missing analytics layer for your AI-powered application:
 
-### **Customer-Level Visibility**
-- **Per-customer token consumption** - Track exactly how much each customer uses Claude
-- **Usage attribution** - Every API call is attributed to a specific customer
-- **Customer context management** - Automatic customer tracking across your application
+### **Track Everything That Matters**
+- **Customer Intelligence** - Know exactly which customers use what features
+- **Metadata Everything** - Tag usage by feature, experiment, team, region, or any dimension
+- **Usage Patterns** - Understand how your AI is actually being used
+- **Real-time Analytics** - Instant visibility into your AI operations
 
-### **Fine-Grained Billing Control**
-- **Custom pricing models** - Set your own rates beyond simple token counts
-- **Arbitrary metadata tracking** - Attach any billing-relevant data to each API call
-- **Multi-dimensional billing** - Bill based on tokens, requests, models, or custom metrics
-- **Real-time usage monitoring** - Track costs and usage as they happen
+### **Built for Modern AI Apps**
+- **One-line integration** - Drop-in replacement for Anthropic SDK
+- **Zero latency overhead** - Async tracking never blocks your API calls
+- **Unlimited custom fields** - Track any metadata that matters to your business
+- **Privacy first** - Your data never touches our servers (optional self-hosting)
 
-### **What Gets Tracked**
-- **Token usage** (input/output tokens for accurate billing)
-- **Model information** (claude-3-5-sonnet, claude-3-haiku, etc.)
-- **Customer identification** (your customer IDs)
-- **Custom metadata** (request types, feature usage, geographic data, etc.)
-- **Performance metrics** (response times, error rates)
+### **What You Can Track**
+- **Token usage** by customer, feature, experiment, or any dimension
+- **Model usage** patterns (Claude 3.5 Sonnet, Claude 3 Haiku, etc.)
+- **Customer behavior** - Who uses what, when, and how much
+- **Custom metadata** - Unlimited fields for your specific needs
+- **Performance metrics** - Latency, errors, success rates by segment
 
 ## 🛡️ Production Ready
 
 **Extremely robust and reliable** - Built for production environments with:
 
-- **>90% Test Coverage** - Comprehensive tests ensuring reliability
-- **Non-blocking I/O** - Fire-and-forget tracking never slows your app
-- **Zero Code Changes** - Drop-in replacement for existing Anthropic clients
-- **Thread-safe** - Safe for concurrent applications
-- **Error Resilient** - Your app continues even if tracking fails
+- **Resilient Tracking:** Claude calls succeed even if tracking fails.
+- **Non-blocking I/O:** Fire-and-forget tracking never slows down your application.
+- **Automatic Retries:** Failed tracking attempts are automatically retried with exponential backoff.
+- **Thread-Safe Context:** Safely track usage across multi-threaded and async applications.
+- **Enterprise Security:** API key sanitization and input validation.
 
 ## 🚀 Quick Start
 
@@ -135,28 +136,28 @@ response = client.messages.create(...)  # Tracked for customer-789
 clear_customer_context()
 ```
 
-### 💎 Fine-Grained Billing with Custom Metadata
+### 💎 Advanced Analytics with Custom Metadata
 
-Track arbitrary metadata with each API call to enable sophisticated billing models:
+Track arbitrary metadata with each API call to enable sophisticated analytics:
 
 ```python
-# Example: AI writing assistant with feature-based billing
+# Example: AI writing assistant with feature tracking
 response = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     max_tokens=2000,
     messages=[{"role": "user", "content": "Write a blog post about AI..."}],
     customer_id="customer-123",
-    # Custom metadata for fine-grained billing
+    # Custom metadata for analytics
     custom_metadata={
         "feature": "content_generation",
-        "plan_tier": "professional",
+        "experiment_group": "claude_3_5_test",
         "content_type": "blog_post",
-        "word_count_target": 1500,
-        "industry": "technology"
+        "user_segment": "power_user",
+        "session_id": "sess_abc123"
     }
 )
 
-# Example: Customer support automation with complexity-based pricing
+# Example: Customer support automation with behavior tracking
 response = client.messages.create(
     model="claude-3-haiku-20240307",
     max_tokens=1000,
@@ -164,21 +165,21 @@ response = client.messages.create(
     customer_id="customer-456",
     custom_metadata={
         "use_case": "customer_support",
-        "conversation_complexity": "high",
-        "ticket_priority": "urgent",
+        "conversation_length": len(complex_support_conversation),
         "department": "technical_support",
-        "escalation_level": 2
+        "interaction_type": "chat",
+        "user_journey_stage": "resolution"
     }
 )
 ```
 
-**Billing Use Cases:**
-- **Feature-based pricing**: Different rates for content generation vs analysis
-- **Plan-tier pricing**: Professional customers pay different rates than basic
-- **Complexity-based pricing**: Higher rates for complex conversations
-- **Department billing**: Track usage by support, sales, marketing teams
-- **Priority-based pricing**: Rush requests cost more
-- **Content-type pricing**: Blog posts vs emails vs code generation
+**Intelligence Use Cases:**
+- **Feature adoption**: Track which AI features customers actually use
+- **A/B testing**: Compare model performance across experiment groups
+- **User segmentation**: Understand usage patterns by customer segment
+- **Journey analytics**: Track AI interactions throughout the customer journey
+- **Performance optimization**: Identify which use cases need optimization
+- **Product insights**: Data-driven decisions on feature development
 
 ## ⚙️ Configuration
 
@@ -367,7 +368,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Documentation**: [https://docs.cmdrdata.ai/anthropic](https://docs.cmdrdata.ai/anthropic)
 - **Issues**: [GitHub Issues](https://github.com/cmdrdata-ai/cmdrdata-anthropic/issues)
-- **Support**: [support@cmdrdata.ai](mailto:support@cmdrdata.ai)
+- **Support**: [spot@cmdrdata.ai](mailto:spot@cmdrdata.ai)
 
 ## 🔗 Related Projects
 
@@ -382,4 +383,4 @@ See [CHANGELOG.md](CHANGELOG.md) for a complete list of changes and version hist
 
 **Built with ❤️ by the CMDR Data team**
 
-*Making AI usage tracking effortless and transparent.*
+*Become the Google Analytics of your AI - understand everything, optimize everything.*
